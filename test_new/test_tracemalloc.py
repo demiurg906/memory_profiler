@@ -1,5 +1,25 @@
 import numpy as np
+import time
 import tracemalloc
+from collections import namedtuple
+from contextlib import contextmanager
+
+Stats = namedtuple('Stats', ('count_diff', 'size_diff'))
+
+
+@contextmanager
+def trace():
+    '''
+    context manager that prints a memory statistic from tracemalloc
+    '''
+    _snapshot1 = tracemalloc.take_snapshot()
+    try:
+        yield
+    finally:
+        _snapshot2 = tracemalloc.take_snapshot()
+        stat = list(filter(lambda item: str(item).startswith(__file__),
+                           _snapshot2.compare_to(_snapshot1, 'filename')))[0]
+        print(Stats(stat.count_diff, stat.size_diff))
 
 
 def test_numpy_1(n=1000):
@@ -11,26 +31,23 @@ def test_numpy_1(n=1000):
 
 
 def test_1(n=1000):
-    a = [i + 0.0 for i in range(n)]
+    a = [float(i) for i in range(n)]
     return a
+
 
 if __name__ == '__main__':
     tracemalloc.start()
-    n = 0
-    snapshot1 = tracemalloc.take_snapshot()
-    a = test_numpy_1(n)
-    snapshot2 = tracemalloc.take_snapshot()
-    b = test_1(n)
-    snapshot3 = tracemalloc.take_snapshot()
-    del b
-    snapshot4 = tracemalloc.take_snapshot()
-    del a
-    snapshot5 = tracemalloc.take_snapshot()
 
-    top_stats1 = snapshot2.compare_to(snapshot1, 'filename')
-    top_stats2 = snapshot3.compare_to(snapshot2, 'filename')
-    top_stats3 = snapshot4.compare_to(snapshot3, 'filename')
-    top_stats4 = snapshot5.compare_to(snapshot4, 'filename')
-
+    n = 1000
+    with trace():
+        a = test_1(n)
+    with trace():
+        b = test_numpy_1(n)
+    with trace():
+        del a
+        time.sleep(1)
+    with trace():
+        time.sleep(1)
+        del b
 
     tracemalloc.stop()
