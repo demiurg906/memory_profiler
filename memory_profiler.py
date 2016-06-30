@@ -39,7 +39,9 @@ if PY2:
     import __builtin__ as builtins
 else:
     import builtins
-    def unicode(x, *args): return str(x)
+
+    def unicode(x, *args):
+        return str(x)
 
 # .. get available packages ..
 try:
@@ -429,7 +431,8 @@ class TimeStamper:
 
 class CodeMap(dict):
 
-    def __init__(self, include_children):
+    def __init__(self, include_children, **kwargs):
+        super().__init__(**kwargs)
         self.include_children = include_children
         self._toplevel = []
 
