@@ -8,6 +8,7 @@ The precision argument specified in the decorator, therefore, is not used.
 
 import time
 
+
 @profile(precision=4)
 def test_1():
     a = [1] * (10 ** 6)
@@ -20,6 +21,7 @@ def test_1():
         b = [2] * (2 * 10 ** 7)
         del b
     return a
+
 
 @profile(precision=2)
 def test_2():

@@ -2,12 +2,15 @@
 
 import time
 
+
+@profile
 def test_1():
     a = {}
     for i in range(10000):
-        a[i] =  i + 1
+        a[i] = i + 1
     return
 
+# TODO: interesting
 @profile
 def test_2():
     a = [1] * (10 ** 6)

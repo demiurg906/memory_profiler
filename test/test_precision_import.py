@@ -10,6 +10,7 @@ precision parameter.
 import time
 from memory_profiler import profile
 
+
 @profile(precision=4)
 def test_1():
     a = [1] * (10 ** 6)
@@ -22,6 +23,7 @@ def test_1():
         b = [2] * (2 * 10 ** 7)
         del b
     return a
+
 
 @profile(precision=5)
 def test_2():

@@ -1,5 +1,6 @@
 import math
 
+
 @profile
 def f():
     o = math.sqrt(2013)

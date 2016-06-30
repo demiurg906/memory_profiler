@@ -2,11 +2,13 @@
 
 import time
 
+
 @profile
 def test1(l):
     a = [1] * l
     time.sleep(1)
     return a
+
 
 @profile
 def test2(l):

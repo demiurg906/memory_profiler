@@ -2,6 +2,7 @@
 
 import time
 
+
 @profile
 def test_1():
     a = [1] * (10 ** 6)

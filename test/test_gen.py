@@ -1,4 +1,3 @@
-
 @profile
 def my_func():
     a = [1] * (10 ** 6)
@@ -18,6 +17,7 @@ def test_comprehension():
     del l_comp
     del d_comp
 
+    # TODO: interesting
     def hh(x=1):
         # Set comprehension
         s_comp = {('Z',) * (k<<13) for k in range(x, 19 + 2*x)}
@@ -32,6 +32,7 @@ def test_comprehension():
     return val
 
 
+# TODO: interesting
 @profile
 def test_generator():
     a_gen = ([42] * (1<<20) for __ in '123')

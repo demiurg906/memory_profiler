@@ -1,4 +1,3 @@
-
 @profile
 def test_1(i):
     # .. will be called twice ..
