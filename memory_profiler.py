@@ -57,6 +57,9 @@ try:
 except ImportError:
     has_tracemalloc = False
 
+_init_tool = False
+tool = 'tracemalloc'
+
 
 class MemitResult(object):
     """memit magic run details.
@@ -88,8 +91,8 @@ def _get_memory(pid, timestamps=False, include_children=False, filename=None):
     if pid == -1:
         pid = os.getpid()
 
-    # .. cross-platform but but requires Python 3.4 or higher
-    if has_tracemalloc and filename is not None:
+    def tracemalloc_tool():
+        # .. cross-platform but but requires Python 3.4 or higher
         stat = list(filter(lambda item: str(item).startswith(filename),
                            tracemalloc.take_snapshot().statistics('filename')))[0]
         mem = stat.size / _TWO_20
@@ -98,8 +101,8 @@ def _get_memory(pid, timestamps=False, include_children=False, filename=None):
         else:
             return mem
 
-    # .. cross-platform but but requires psutil ..
-    if has_psutil:
+    def ps_util_tool():
+        # .. cross-platform but but requires psutil ..
         process = psutil.Process(pid)
         try:
             # avoid useing get_memory_info since it does not exists
@@ -115,15 +118,15 @@ def _get_memory(pid, timestamps=False, include_children=False, filename=None):
                     for p in process.children(recursive=True):
                         mem += getattr(p, meminfo_attr)()[0] / _TWO_20
             if timestamps:
-                return (mem, time.time())
+                return mem, time.time()
             else:
                 return mem
         except psutil.AccessDenied:
             pass
             # continue and try to get this from ps
 
-    # .. scary stuff ..
-    if os.name == 'posix':
+    def posix_tool():
+        # .. scary stuff ..
         if include_children:
             raise NotImplementedError('The psutil module is required when to'
                                       ' monitor memory usage of children'
@@ -141,17 +144,52 @@ def _get_memory(pid, timestamps=False, include_children=False, filename=None):
             vsz_index = out[0].split().index(b'RSS')
             mem = float(out[1].split()[vsz_index]) / 1024
             if timestamps:
-                return(mem, time.time())
+                return mem, time.time()
             else:
                 return mem
         except:
             if timestamps:
-                return (-1, time.time())
+                return -1, time.time()
             else:
                 return -1
-    else:
-        raise NotImplementedError('The psutil module is required for non-unix '
+
+    global tool
+    global _init_tool
+    if not _init_tool:
+        if tool == 'tracemalloc':
+            if not has_tracemalloc or filename is None:
+                tool = 'psutil'
+                if not has_psutil:
+                    tool = 'posix'
+                    if not os.name == 'posix':
+                        tool = 'no_tool'
+            if tool != 'tracemalloc':
+                print('there is no access to tracemalloc. {} using instead'.format(tool), file=sys.stderr)
+        if tool == 'psutil':
+            if not has_psutil:
+                tool = 'tracemalloc'
+                if not has_tracemalloc or filename is None:
+                    tool = 'posix'
+                    if not os.name == 'posix':
+                        tool = 'no_tool'
+            if tool != 'psutil':
+                print('there is no access to psutil. {} using instead'.format(tool), file=sys.stderr)
+        if tool == 'posix':
+            if not os.name == 'posix':
+                tool = 'tracemalloc'
+                if not has_tracemalloc or filename is None:
+                    tool = 'psutil'
+                    if not has_psutil:
+                        tool = 'no_tool'
+            if tool != 'posix':
+                print('your os is not posix. {} using instead'.format(tool), file=sys.stderr)
+        _init_tool = True
+    
+    if tool == 'no_tool':
+        raise NotImplementedError('Tracemalloc or psutil module is required for non-unix '
                                   'platforms')
+    tools = {'tracemalloc': tracemalloc_tool, 'psutil': ps_util_tool, 'posix': posix_tool}
+    return tools[tool]()
 
 
 class MemTimer(Process):
@@ -1015,20 +1053,23 @@ if __name__ == '__main__':
     parser = OptionParser(usage=_CMD_USAGE, version=__version__)
     parser.disable_interspersed_args()
     parser.add_option(
-        "--pdb-mmem", dest="max_mem", metavar="MAXMEM",
-        type="float", action="store",
-        help="step into the debugger when memory exceeds MAXMEM")
+        '--pdb-mmem', dest='max_mem', metavar='MAXMEM',
+        type='float', action='store',
+        help='step into the debugger when memory exceeds MAXMEM')
     parser.add_option(
-        '--precision', dest="precision", type="int",
-        action="store", default=3,
-        help="precision of memory output in number of significant digits")
-    parser.add_option("-o", dest="out_filename", type="str",
-                      action="store", default=None,
-                      help="path to a file where results will be written")
-    parser.add_option("--timestamp", dest="timestamp", default=False,
-                      action="store_true",
-                      help="""print timestamp instead of memory measurement for
-                      decorated functions""")
+        '--precision', dest='precision', type='int',
+        action='store', default=3,
+        help='precision of memory output in number of significant digits')
+    parser.add_option('-o', dest='out_filename', type='str',
+                      action='store', default=None,
+                      help='path to a file where results will be written')
+    parser.add_option('--timestamp', dest='timestamp', default=False,
+                      action='store_true',
+                      help='''print timestamp instead of memory measurement for
+                      decorated functions''')
+    parser.add_option('--tool', dest='tool', type='choice', action='store',
+                      choices=['tracemalloc', 'psutil', 'posix'], default='tracemalloc',
+                      help='tool using for getting memory info (one of the {tracemalloc, psutil, posix})')
 
     if not sys.argv[1:]:
         parser.print_help()
@@ -1036,6 +1077,7 @@ if __name__ == '__main__':
 
     (options, args) = parser.parse_args()
     sys.argv[:] = args  # Remove every memory_profiler arguments
+    tool = options.tool
 
     script_filename = _find_script(args[0])
     if options.timestamp:
