@@ -6,6 +6,9 @@ from collections import namedtuple
 from contextlib import contextmanager
 from memory_profiler import profile
 
+import memory_profiler
+memory_profiler.tool = 'psutil'
+
 Stats = namedtuple('Stats', ('count_diff', 'size_diff'))
 _TWO_20 = float(2 ** 20)
 
@@ -22,10 +25,10 @@ def trace(stream=None):
         snapshot2 = tracemalloc.take_snapshot()
         stat = list(filter(lambda item: str(item).startswith(__file__),
                            snapshot2.compare_to(snapshot1, 'filename')))[0]
-        stream.write('count_dif = {0}, size_dif = {1:.4f}'.format(stat.count_diff, stat.size_diff / _TWO_20))
+        stream.write('count_dif = {0}, size_dif = {1:.4f}\n'.format(stat.count_diff, stat.size_diff / _TWO_20))
 
 
-@profile
+@profile(precision=4)
 def test_mem_prof_1(n):
     a = bytearray(n)
     del a
@@ -78,7 +81,7 @@ if __name__ == '__main__':
     n = int(1e8)
     print('n = {0:,}\n'.format(n))
     test_mem_prof_1(n)
-    test_trace_1(n)
+    # test_trace_1(n)
     # test_mem_prof_2()
     # test_trace_2()
 

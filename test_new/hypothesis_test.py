@@ -56,7 +56,7 @@ def test_trace_malloc(n):
     assert abs(inc - size) <= EPSILON
 
 
-@profile(stream=output)
+@profile(stream=output, precision=6)
 def mem_prof(n):
     a = bytearray(n)
     del a
@@ -85,8 +85,6 @@ def parse_tr_prof():
 
 
 if __name__ == '__main__':
-    tracemalloc.start()
-
     test_memory_profiler()
     test_trace_malloc()
 
