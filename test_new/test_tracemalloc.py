@@ -4,10 +4,6 @@ import tracemalloc
 import sys
 from collections import namedtuple
 from contextlib import contextmanager
-from memory_profiler import profile
-
-import memory_profiler
-memory_profiler.tool = 'psutil'
 
 Stats = namedtuple('Stats', ('count_diff', 'size_diff'))
 _TWO_20 = float(2 ** 20)
