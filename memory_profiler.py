@@ -376,16 +376,15 @@ def _find_script(script_name):
 class _TimeStamperCM(object):
     """Time-stamping context manager."""
 
-    def __init__(self, timestamps):
+    def __init__(self, timestamps, filename):
         self._timestamps = timestamps
+        self._filename = filename
 
     def __enter__(self):
-        # TODO: add filename
-        self._timestamps.append(_get_memory(os.getpid(), timestamps=True))
+        self._timestamps.append(_get_memory(os.getpid(), timestamps=True, filename=self._filename))
 
     def __exit__(self, *args):
-        # TODO: add filename
-        self._timestamps.append(_get_memory(os.getpid(), timestamps=True))
+        self._timestamps.append(_get_memory(os.getpid(), timestamps=True, filename=self._filename))
 
 
 class TimeStamper:
@@ -423,7 +422,7 @@ class TimeStamper:
         self.functions[func].append(timestamps)
         # A new object is required each time, since there can be several
         # nested context managers.
-        return _TimeStamperCM(timestamps)
+        return _TimeStamperCM(timestamps, func.__code__.co_filename)
 
     def add_function(self, func):
         if func not in self.functions:
