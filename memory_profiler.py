@@ -158,7 +158,7 @@ def _get_memory(pid, timestamps=False, include_children=False, filename=None):
     global _init_tool
     if not _init_tool:
         old_tool = tool
-        preds = {'tracemalloc': has_tracemalloc and filename is not None,
+        preds = {'tracemalloc': has_tracemalloc and filename is not None and filename != '<unknown>',
                  'psutil': has_psutil,
                  'posix': os.name == 'posix',
                  'no_tool': True
@@ -447,7 +447,11 @@ class TimeStamper:
         self.functions[func].append(timestamps)
         # A new object is required each time, since there can be several
         # nested context managers.
-        return _TimeStamperCM(timestamps, func.__code__.co_filename)
+        try:
+            filename = inspect.getsourcefile(func)
+        except TypeError:
+            filename = '<unknown>'
+        return _TimeStamperCM(timestamps, filename)
 
     def add_function(self, func):
         if func not in self.functions:
@@ -458,7 +462,10 @@ class TimeStamper:
         """
         def f(*args, **kwds):
             # Start time
-            filename = func.__code__.co_filename
+            try:
+                filename = inspect.getsourcefile(func)
+            except TypeError:
+                filename = '<unknown>'
             timestamps = [_get_memory(os.getpid(), timestamps=True, filename=filename)]
             self.functions[func].append(timestamps)
             try:
@@ -481,8 +488,7 @@ class TimeStamper:
 
 class CodeMap(dict):
 
-    def __init__(self, include_children, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, include_children):
         self.include_children = include_children
         self._toplevel = []
 
