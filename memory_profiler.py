@@ -17,6 +17,8 @@ import inspect
 import subprocess
 import logging
 
+from itertools import filterfalse
+
 # TODO: provide alternative when multiprocessing is not available
 try:
     from multiprocessing import Process, Pipe
@@ -156,33 +158,19 @@ def _get_memory(pid, timestamps=False, include_children=False, filename=None):
     global tool
     global _init_tool
     if not _init_tool:
-        if tool == 'tracemalloc':
-            if not has_tracemalloc or filename is None:
-                tool = 'psutil'
-                if not has_psutil:
-                    tool = 'posix'
-                    if not os.name == 'posix':
-                        tool = 'no_tool'
-            if tool != 'tracemalloc':
-                print('there is no access to tracemalloc. {} using instead'.format(tool), file=sys.stderr)
-        if tool == 'psutil':
-            if not has_psutil:
-                tool = 'tracemalloc'
-                if not has_tracemalloc or filename is None:
-                    tool = 'posix'
-                    if not os.name == 'posix':
-                        tool = 'no_tool'
-            if tool != 'psutil':
-                print('there is no access to psutil. {} using instead'.format(tool), file=sys.stderr)
-        if tool == 'posix':
-            if not os.name == 'posix':
-                tool = 'tracemalloc'
-                if not has_tracemalloc or filename is None:
-                    tool = 'psutil'
-                    if not has_psutil:
-                        tool = 'no_tool'
-            if tool != 'posix':
-                print('your os is not posix. {} using instead'.format(tool), file=sys.stderr)
+        old_tool = tool
+        preds = {'tracemalloc': has_tracemalloc and filename is not None,
+                 'psutil': has_psutil,
+                 'posix': os.name == 'posix',
+                 'no_tool': True
+                 }
+        tools = ['tracemalloc', 'psutil', 'posix', 'no_tool']
+        priors = {x: i + 1 for i, x in enumerate(tools)}
+        priors[tool] = 0
+        tools.sort(key=lambda x: priors[x])
+        tool = list(filterfalse(lambda x: not preds[x], tools))[0]
+        if tool != old_tool:
+            print('{} can not be used, {} used instead'.format(old_tool, tool))
         _init_tool = True
     
     if tool == 'no_tool':
