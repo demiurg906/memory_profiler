@@ -50,6 +50,11 @@ try:
 except ImportError:
     has_psutil = False
 
+# TODO: change to 'try: import except'
+has_tracemalloc = True
+import tracemalloc
+tracemalloc.start()
+
 
 class MemitResult(object):
     """memit magic run details.
@@ -75,11 +80,21 @@ class MemitResult(object):
         p.text(u'<MemitResult : '+msg+u'>')
 
 
-def _get_memory(pid, timestamps=False, include_children=False):
+def _get_memory(pid, timestamps=False, include_children=False, filename=None):
 
     # .. only for current process and only on unix..
     if pid == -1:
         pid = os.getpid()
+
+    # .. cross-platform but but requires Python 3.4 or higher
+    if has_tracemalloc:
+        stat = list(filter(lambda item: str(item).startswith(filename),
+                           tracemalloc.take_snapshot().statistics('filename')))[0]
+        mem = stat.size / _TWO_20
+        if timestamps:
+            return (mem, time.time())
+        else:
+            return mem
 
     # .. cross-platform but but requires psutil ..
     if has_psutil:
@@ -154,6 +169,7 @@ class MemTimer(Process):
         self.include_children = kw.pop("include_children", False)
 
         # get baseline memory usage
+        # TODO: add filename
         self.mem_usage = [
             _get_memory(self.monitor_pid, timestamps=self.timestamps,
                         include_children=self.include_children)]
@@ -163,6 +179,7 @@ class MemTimer(Process):
         self.pipe.send(0)  # we're ready
         stop = False
         while True:
+            # TODO: add filename
             cur_mem = _get_memory(self.monitor_pid, timestamps=self.timestamps,
                                   include_children=self.include_children)
             if not self.max_usage:
@@ -277,6 +294,7 @@ def memory_usage(proc=-1, interval=.1, timeout=None, timestamps=False,
         line_count = 0
         while True:
             if not max_usage:
+                # TODO: add filename
                 mem_usage = _get_memory(proc.pid, timestamps=timestamps,
                                         include_children=include_children)
                 if stream is not None:
@@ -284,6 +302,7 @@ def memory_usage(proc=-1, interval=.1, timeout=None, timestamps=False,
                 else:
                     ret.append(mem_usage)
             else:
+                # TODO: add filename
                 ret = max(ret,
                           _get_memory(proc.pid,
                                       include_children=include_children))
@@ -308,6 +327,7 @@ def memory_usage(proc=-1, interval=.1, timeout=None, timestamps=False,
         while counter < max_iter:
             counter += 1
             if not max_usage:
+                # TODO: add filename
                 mem_usage = _get_memory(proc, timestamps=timestamps,
                                         include_children=include_children)
                 if stream is not None:
@@ -315,6 +335,7 @@ def memory_usage(proc=-1, interval=.1, timeout=None, timestamps=False,
                 else:
                     ret.append(mem_usage)
             else:
+                # TODO: add filename
                 ret = max([ret,
                            _get_memory(proc, include_children=include_children)
                            ])
@@ -357,9 +378,11 @@ class _TimeStamperCM(object):
         self._timestamps = timestamps
 
     def __enter__(self):
+        # TODO: add filename
         self._timestamps.append(_get_memory(os.getpid(), timestamps=True))
 
     def __exit__(self, *args):
+        # TODO: add filename
         self._timestamps.append(_get_memory(os.getpid(), timestamps=True))
 
 
@@ -409,12 +432,14 @@ class TimeStamper:
         """
         def f(*args, **kwds):
             # Start time
+            # TODO: add filename
             timestamps = [_get_memory(os.getpid(), timestamps=True)]
             self.functions[func].append(timestamps)
             try:
                 return func(*args, **kwds)
             finally:
                 # end time
+                # TODO: add filename
                 timestamps.append(_get_memory(os.getpid(), timestamps=True))
         return f
 
@@ -464,7 +489,7 @@ class CodeMap(dict):
             self.add(subcode, toplevel_code=toplevel_code)
 
     def trace(self, code, lineno):
-        memory = _get_memory(-1, include_children=self.include_children)
+        memory = _get_memory(-1, include_children=self.include_children, filename=code.co_filename)
         # if there is already a measurement for that line get the max
         previous_memory = self[code].get(lineno, 0)
         self[code][lineno] = max(memory, previous_memory)
@@ -581,7 +606,7 @@ class LineProfiler(object):
     def trace_max_mem(self, frame, event, arg):
         # run into PDB as soon as memory is higher than MAX_MEM
         if event in ('line', 'return') and frame.f_code in self.code_map:
-            c = _get_memory(-1)
+            c = _get_memory(-1, filename=frame.f_code.co_filename)
             if c >= self.max_mem:
                 t = ('Current memory {0:.2f} MiB exceeded the '
                      'maximum of {1:.2f} MiB\n'.format(c, self.max_mem))
