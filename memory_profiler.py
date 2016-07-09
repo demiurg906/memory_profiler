@@ -434,15 +434,14 @@ class TimeStamper:
         """
         def f(*args, **kwds):
             # Start time
-            # TODO: add filename
-            timestamps = [_get_memory(os.getpid(), timestamps=True)]
+            filename = func.__code__.co_filename
+            timestamps = [_get_memory(os.getpid(), timestamps=True, filename=filename)]
             self.functions[func].append(timestamps)
             try:
                 return func(*args, **kwds)
             finally:
                 # end time
-                # TODO: add filename
-                timestamps.append(_get_memory(os.getpid(), timestamps=True))
+                timestamps.append(_get_memory(os.getpid(), timestamps=True, filename=filename))
         return f
 
     def show_results(self, stream=None):
@@ -1039,11 +1038,12 @@ if __name__ == '__main__':
     (options, args) = parser.parse_args()
     sys.argv[:] = args  # Remove every memory_profiler arguments
 
+    script_filename = _find_script(args[0])
     if options.timestamp:
         prof = TimeStamper()
     else:
         prof = LineProfiler(max_mem=options.max_mem)
-    script_filename = _find_script(args[0])
+
     try:
         exec_with_profiler(script_filename, prof)
     finally:
