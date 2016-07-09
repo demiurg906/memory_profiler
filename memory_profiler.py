@@ -55,7 +55,6 @@ except ImportError:
 try:
     import tracemalloc
     has_tracemalloc = True
-    tracemalloc.start()
 except ImportError:
     has_tracemalloc = False
 
@@ -95,8 +94,8 @@ def _get_memory(pid, timestamps=False, include_children=False, filename=None):
 
     def tracemalloc_tool():
         # .. cross-platform but but requires Python 3.4 or higher
-        stat = list(filter(lambda item: str(item).startswith(filename),
-                           tracemalloc.take_snapshot().statistics('filename')))[0]
+        stat = next(filter(lambda item: str(item).startswith(filename),
+                           tracemalloc.take_snapshot().statistics('filename')))
         mem = stat.size / _TWO_20
         if timestamps:
             return mem, time.time()
@@ -168,7 +167,7 @@ def _get_memory(pid, timestamps=False, include_children=False, filename=None):
         priors = {x: i + 1 for i, x in enumerate(tools)}
         priors[tool] = 0
         tools.sort(key=lambda x: priors[x])
-        tool = list(filterfalse(lambda x: not preds[x], tools))[0]
+        tool = next(filterfalse(lambda x: not preds[x], tools))
         if tool != old_tool:
             print('{} can not be used, {} used instead'.format(old_tool, tool))
         _init_tool = True
@@ -1000,11 +999,15 @@ if PY2:
         execfile(filename, ns, ns)
 else:
     def exec_with_profiler(filename, profiler):
+        if has_tracemalloc:
+            tracemalloc.start()
         builtins.__dict__['profile'] = profiler
         # shadow the profile decorator defined above
         ns = dict(_CLEAN_GLOBALS, profile=profiler)
         with open(filename) as f:
             exec(compile(f.read(), filename, 'exec'), ns, ns)
+        if has_tracemalloc:
+            tracemalloc.stop()
 
 
 class LogFile(object):
