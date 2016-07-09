@@ -50,10 +50,12 @@ try:
 except ImportError:
     has_psutil = False
 
-# TODO: change to 'try: import except'
-has_tracemalloc = True
-import tracemalloc
-tracemalloc.start()
+try:
+    import tracemalloc
+    has_tracemalloc = True
+    tracemalloc.start()
+except ImportError:
+    has_tracemalloc = False
 
 
 class MemitResult(object):
@@ -87,12 +89,12 @@ def _get_memory(pid, timestamps=False, include_children=False, filename=None):
         pid = os.getpid()
 
     # .. cross-platform but but requires Python 3.4 or higher
-    if has_tracemalloc:
+    if has_tracemalloc and filename is not None:
         stat = list(filter(lambda item: str(item).startswith(filename),
                            tracemalloc.take_snapshot().statistics('filename')))[0]
         mem = stat.size / _TWO_20
         if timestamps:
-            return (mem, time.time())
+            return mem, time.time()
         else:
             return mem
 
