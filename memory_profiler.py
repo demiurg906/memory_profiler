@@ -59,7 +59,7 @@ except ImportError:
     has_tracemalloc = False
 
 _init_tool = False
-tool = 'tracemalloc'
+tool = 'psutil'
 
 
 class MemitResult(object):
@@ -154,27 +154,9 @@ def _get_memory(pid, timestamps=False, include_children=False, filename=None):
             else:
                 return -1
 
-    global tool
-    global _init_tool
-    if not _init_tool:
-        old_tool = tool
-        preds = {'tracemalloc': has_tracemalloc and filename is not None and filename != '<unknown>',
-                 'psutil': has_psutil,
-                 'posix': os.name == 'posix',
-                 'no_tool': True
-                 }
-        tools = ['tracemalloc', 'psutil', 'posix', 'no_tool']
-        priors = {x: i + 1 for i, x in enumerate(tools)}
-        priors[tool] = 0
-        tools.sort(key=lambda x: priors[x])
-        tool = next(filterfalse(lambda x: not preds[x], tools))
-        if tool != old_tool:
-            print('{} can not be used, {} used instead'.format(old_tool, tool))
-        _init_tool = True
-    
-    if tool == 'no_tool':
-        raise NotImplementedError('Tracemalloc or psutil module is required for non-unix '
-                                  'platforms')
+    if tool == 'tracemalloc' and (filename is None or filename == '<unknown>'):
+        raise RuntimeError('There is no access to source file of the profiled function')
+
     tools = {'tracemalloc': tracemalloc_tool, 'psutil': ps_util_tool, 'posix': posix_tool}
     return tools[tool]()
 
@@ -981,6 +963,9 @@ def profile(func=None, stream=None, precision=1):
     """
     Decorator that will run the function and print a line-by-line profile
     """
+    global _init_tool
+    if not _init_tool:
+        choose_tool()
     if func is not None:
         def wrapper(*args, **kwargs):
             prof = LineProfiler()
@@ -992,6 +977,34 @@ def profile(func=None, stream=None, precision=1):
         def inner_wrapper(f):
             return profile(f, stream=stream, precision=precision)
         return inner_wrapper
+
+
+def choose_tool():
+    """
+    Function that tries to setup tool, chosen by user, and if failed,
+    setup one of the allowable tools
+    """
+    global tool
+    global _init_tool
+    old_tool = tool
+    preds = {'tracemalloc': has_tracemalloc,
+             'psutil': has_psutil,
+             'posix': os.name == 'posix',
+             'no_tool': True
+             }
+    tools = ['psutil', 'posix', 'tracemalloc', 'no_tool']
+    priors = {x: i + 1 for i, x in enumerate(tools)}
+    priors[tool] = 0
+    tools.sort(key=lambda x: priors[x])
+    tool = next(filterfalse(lambda x: not preds[x], tools))
+
+    if tool == 'no_tool':
+        raise NotImplementedError('Tracemalloc or psutil module is required for non-unix '
+                                  'platforms')
+    if tool != old_tool:
+        print('{} can not be used, {} used instead'.format(old_tool, tool))
+
+    _init_tool = True
 
 
 # Insert in the built-ins to have profile
