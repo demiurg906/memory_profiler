@@ -1005,14 +1005,16 @@ if PY2:
         execfile(filename, ns, ns)
 else:
     def exec_with_profiler(filename, profiler):
-        if has_tracemalloc:
+        tracemalloc_started = False
+        if tool == 'tracemalloc' and has_tracemalloc:
             tracemalloc.start()
+            tracemalloc_started = True
         builtins.__dict__['profile'] = profiler
         # shadow the profile decorator defined above
         ns = dict(_CLEAN_GLOBALS, profile=profiler)
         with open(filename) as f:
             exec(compile(f.read(), filename, 'exec'), ns, ns)
-        if has_tracemalloc:
+        if tracemalloc_started:
             tracemalloc.stop()
 
 
