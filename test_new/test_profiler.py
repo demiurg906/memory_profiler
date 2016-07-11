@@ -4,13 +4,15 @@ from io import StringIO
 from time import sleep
 
 from memory_profiler import profile
-
+import memory_profiler
 
 tracemalloc.start()
 output = StringIO()
 
 # allowable error in MB
 EPSILON = 0.0001
+
+memory_profiler.tool = 'tracemalloc'
 
 
 @pytest.mark.parametrize('test_input,expected', [
