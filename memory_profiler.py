@@ -1025,10 +1025,12 @@ else:
         builtins.__dict__['profile'] = profiler
         # shadow the profile decorator defined above
         ns = dict(_CLEAN_GLOBALS, profile=profiler)
-        with open(filename) as f:
-            exec(compile(f.read(), filename, 'exec'), ns, ns)
-        if tracemalloc_started:
-            tracemalloc.stop()
+        try:
+            with open(filename) as f:
+                exec(compile(f.read(), filename, 'exec'), ns, ns)
+        finally:
+            if tracemalloc_started:
+                tracemalloc.stop()
 
 
 class LogFile(object):
