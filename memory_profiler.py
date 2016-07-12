@@ -60,7 +60,6 @@ except ImportError:
 
 _backend_chosen = False
 _backend = 'psutil'
-_tracemalloc_started = False
 
 
 class MemitResult(object):
@@ -968,7 +967,7 @@ def profile(func=None, stream=None, precision=1, backend='psutil'):
     _backend = backend
     if not _backend_chosen:
         choose_backend()
-    if _backend == 'tracemalloc' and not _tracemalloc_started:
+    if _backend == 'tracemalloc' and not tracemalloc.is_tracing():
         tracemalloc.start()
     if func is not None:
         def wrapper(*args, **kwargs):
@@ -1022,10 +1021,8 @@ if PY2:
         execfile(filename, ns, ns)
 else:
     def exec_with_profiler(filename, profiler):
-        tracemalloc_started = False
         if _backend == 'tracemalloc' and has_tracemalloc:
             tracemalloc.start()
-            tracemalloc_started = True
         builtins.__dict__['profile'] = profiler
         # shadow the profile decorator defined above
         ns = dict(_CLEAN_GLOBALS, profile=profiler)
@@ -1034,7 +1031,7 @@ else:
             with open(filename) as f:
                 exec(compile(f.read(), filename, 'exec'), ns, ns)
         finally:
-            if tracemalloc_started:
+            if tracemalloc.is_tracing():
                 tracemalloc.stop()
 
 
