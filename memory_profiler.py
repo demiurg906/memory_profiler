@@ -18,7 +18,6 @@ import subprocess
 import logging
 
 from collections import OrderedDict
-from itertools import filterfalse
 
 # TODO: provide alternative when multiprocessing is not available
 try:
