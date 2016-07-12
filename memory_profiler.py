@@ -17,6 +17,7 @@ import inspect
 import subprocess
 import logging
 
+from collections import OrderedDict
 from itertools import filterfalse
 
 # TODO: provide alternative when multiprocessing is not available
@@ -987,17 +988,17 @@ def choose_tool():
     global tool
     global _init_tool
     old_tool = tool
-    preds = {'tracemalloc': has_tracemalloc,
-             'psutil': has_psutil,
-             'posix': os.name == 'posix',
-             'no_tool': True
-             }
-    tools = ['psutil', 'posix', 'tracemalloc', 'no_tool']
-    priors = {x: i + 1 for i, x in enumerate(tools)}
-    priors[tool] = 0
-    tools.sort(key=lambda x: priors[x])
-    tool = next(filterfalse(lambda x: not preds[x], tools))
-
+    tools = OrderedDict([
+        ('psutil', has_psutil),
+        ('posix', os.name == 'posix'),
+        ('tracemalloc', has_tracemalloc),
+        ('no_tool', True)
+    ])
+    tools.move_to_end(tool, last=False)
+    for n_tool, is_available in tools.items():
+        if is_available:
+            tool = n_tool
+            break
     if tool == 'no_tool':
         raise NotImplementedError('Tracemalloc or psutil module is required for non-unix '
                                   'platforms')
@@ -1015,6 +1016,7 @@ if PY2:
     def exec_with_profiler(filename, profiler):
         builtins.__dict__['profile'] = profiler
         ns = dict(_CLEAN_GLOBALS, profile=profiler)
+        choose_tool()
         execfile(filename, ns, ns)
 else:
     def exec_with_profiler(filename, profiler):
@@ -1025,6 +1027,7 @@ else:
         builtins.__dict__['profile'] = profiler
         # shadow the profile decorator defined above
         ns = dict(_CLEAN_GLOBALS, profile=profiler)
+        choose_tool()
         try:
             with open(filename) as f:
                 exec(compile(f.read(), filename, 'exec'), ns, ns)
